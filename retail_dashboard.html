@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Retail Data Analysis Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #0a0c10;
+    --bg2:       #111520;
+    --bg3:       #181e2e;
+    --border:    #1e2840;
+    --accent1:   #00e5ff;
+    --accent2:   #ff6b35;
+    --accent3:   #7c3aed;
+    --accent4:   #22c55e;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --card-glow: 0 0 30px rgba(0,229,255,.06);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+
+  /* ── GRID NOISE TEXTURE ── */
+  body::before{
+    content:'';position:fixed;inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.015) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,229,255,.015) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0
+  }
+
+  /* ── HEADER ── */
+  header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(10,12,16,.85);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);
+    padding:16px 40px;display:flex;align-items:center;justify-content:space-between
+  }
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent1),var(--accent3));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .logo-text{font-size:18px;font-weight:800;letter-spacing:-.5px}
+  .logo-text span{color:var(--accent1)}
+  .header-meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:right;line-height:1.6}
+  .live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent4);margin-right:5px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* ── MAIN LAYOUT ── */
+  main{position:relative;z-index:1;padding:32px 40px;max-width:1600px;margin:0 auto}
+
+  /* ── SECTION TITLES ── */
+  .section-label{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:var(--accent1);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px
+  }
+  .section-title{font-size:28px;font-weight:800;margin-bottom:24px;letter-spacing:-.5px}
+
+  /* ── KPI CARDS ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:16px;margin-bottom:40px}
+  .kpi-card{
+    background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+    padding:20px;position:relative;overflow:hidden;
+    box-shadow:var(--card-glow);
+    animation:fadeUp .5s ease both
+  }
+  .kpi-card::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--accent1),var(--accent3))
+  }
+  .kpi-label{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+  .kpi-value{font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace}
+  .kpi-card.accent1 .kpi-value{color:var(--accent1)}
+  .kpi-card.accent2 .kpi-value{color:var(--accent2)}
+  .kpi-card.accent3 .kpi-value{color:var(--accent3)}
+  .kpi-card.accent4 .kpi-value{color:var(--accent4)}
+
+  /* ── CHART GRID ── */
+  .charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+  .charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+  .charts-row2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+
+  /* ── CHART CARD ── */
+  .chart-card{
+    background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+    padding:24px;box-shadow:var(--card-glow);
+    animation:fadeUp .6s ease both
+  }
+  .chart-card.full{grid-column:1/-1}
+  .chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+  .chart-title{font-size:15px;font-weight:700}
+  .chart-subtitle{font-size:11px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace}
+  .chart-badge{
+    font-size:10px;font-family:'JetBrains Mono',monospace;
+    padding:4px 10px;border-radius:20px;
+    background:rgba(0,229,255,.1);color:var(--accent1);border:1px solid rgba(0,229,255,.2)
+  }
+  .chart-wrap{position:relative;width:100%}
+
+  /* ── HEATMAP ── */
+  .heatmap-grid{display:grid;grid-template-columns:120px repeat(12,1fr);gap:3px;font-size:10px;font-family:'JetBrains Mono',monospace}
+  .hm-header{color:var(--muted);text-align:center;padding:4px 2px}
+  .hm-label{color:var(--muted);padding:5px 8px 5px 0;display:flex;align-items:center}
+  .hm-cell{
+    height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-size:9px;cursor:pointer;transition:transform .15s,box-shadow .15s
+  }
+  .hm-cell:hover{transform:scale(1.12);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:10;position:relative}
+
+  /* ── TABLE ── */
+  .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead tr{background:var(--bg3);border-bottom:1px solid var(--border)}
+  th{padding:12px 16px;text-align:left;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-weight:500}
+  tbody tr{border-bottom:1px solid rgba(30,40,64,.5);transition:background .15s}
+  tbody tr:hover{background:var(--bg3)}
+  td{padding:11px 16px}
+  .badge{
+    display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;
+    font-family:'JetBrains Mono',monospace;font-weight:500
+  }
+  .badge-elec{background:rgba(0,229,255,.15);color:var(--accent1)}
+  .badge-home{background:rgba(124,58,237,.15);color:#a78bfa}
+  .badge-sprt{background:rgba(34,197,94,.15);color:var(--accent4)}
+  .badge-clth{background:rgba(255,107,53,.15);color:var(--accent2)}
+  .badge-bty {background:rgba(236,72,153,.15);color:#f472b6}
+  .badge-toys{background:rgba(234,179,8,.15);color:#fbbf24}
+  .badge-groc{background:rgba(100,116,139,.15);color:var(--muted)}
+
+  /* ── REGION BARS ── */
+  .region-bar-wrap{display:flex;flex-direction:column;gap:12px}
+  .region-row{display:flex;align-items:center;gap:12px}
+  .region-name{width:70px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .region-track{flex:1;height:10px;background:var(--border);border-radius:6px;overflow:hidden}
+  .region-fill{height:100%;border-radius:6px;transition:width 1s ease}
+  .region-val{width:90px;text-align:right;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text)}
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--accent3)}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:1200px){
+    .kpi-grid{grid-template-columns:repeat(4,1fr)}
+    .charts-grid{grid-template-columns:1fr}
+    .charts-row{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:768px){
+    main{padding:16px}
+    header{padding:12px 16px}
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+    .charts-row{grid-template-columns:1fr}
+    .charts-row2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛒</div>
+    <div>
+      <div class="logo-text">Retail<span>IQ</span></div>
+      <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">Data Analysis Dashboard</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div><span class="live-dot"></span>1,200 Transactions · FY 2024</div>
+    <div>Generated by retail_analysis.py</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI ROW -->
+  <div class="section-label">Performance Overview</div>
+  <div class="kpi-grid">
+    <div class="kpi-card accent1">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">₹16.4L</div>
+      <div class="kpi-sub">FY 2024</div>
+    </div>
+    <div class="kpi-card accent4">
+      <div class="kpi-label">Gross Profit</div>
+      <div class="kpi-value">₹6.97L</div>
+      <div class="kpi-sub">+42.5% margin</div>
+    </div>
+    <div class="kpi-card accent2">
+      <div class="kpi-label">Total Cost</div>
+      <div class="kpi-value">₹9.43L</div>
+      <div class="kpi-sub">COGS</div>
+    </div>
+    <div class="kpi-card accent3">
+      <div class="kpi-label">Profit Margin</div>
+      <div class="kpi-value">42.5%</div>
+      <div class="kpi-sub">Gross %</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value">1,200</div>
+      <div class="kpi-sub">Transactions</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Order</div>
+      <div class="kpi-value">₹1,367</div>
+      <div class="kpi-sub">Per transaction</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Units Sold</div>
+      <div class="kpi-value">6,710</div>
+      <div class="kpi-sub">Total units</div>
+    </div>
+  </div>
+
+  <!-- MONTHLY REVENUE + DONUT -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Monthly Revenue & Orders</div>
+          <div class="chart-subtitle">Revenue bars · Orders line · Jan–Dec 2024</div>
+        </div>
+        <span class="chart-badge">12 months</span>
+      </div>
+      <div class="chart-wrap"><canvas id="monthlyChart" height="260"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Revenue by Category</div>
+          <div class="chart-subtitle">Share of total revenue</div>
+        </div>
+        <span class="chart-badge">7 categories</span>
+      </div>
+      <div class="chart-wrap"><canvas id="donutChart" height="260"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TOP PRODUCTS + REGION + PROFIT -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Top 10 Products</div>
+          <div class="chart-subtitle">By revenue (₹)</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="topProdChart" height="300"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Region Performance</div>
+          <div class="chart-subtitle">Revenue share by region</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="margin-top:8px">
+        <div class="region-bar-wrap" id="regionBars"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Revenue vs Profit</div>
+          <div class="chart-subtitle">By category comparison</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="revProfChart" height="300"></canvas></div>
+    </div>
+  </div>
+
+  <!-- WEEKLY TREND -->
+  <div class="charts-row2">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Weekly Revenue Trend</div>
+          <div class="chart-subtitle">W01–W52 · Full year view</div>
+        </div>
+        <span class="chart-badge">52 weeks</span>
+      </div>
+      <div class="chart-wrap"><canvas id="weeklyChart" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Units Sold by Category</div>
+          <div class="chart-subtitle">Volume distribution</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="unitsChart" height="220"></canvas></div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Category × Month Revenue Heatmap</div>
+        <div class="chart-subtitle">Darker = higher revenue · Hover for value</div>
+      </div>
+      <span class="chart-badge">84 cells</span>
+    </div>
+    <div id="heatmapWrap" style="overflow-x:auto;padding-bottom:4px"></div>
+  </div>
+
+  <!-- TRANSACTIONS TABLE -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Recent Transactions</div>
+        <div class="chart-subtitle">Latest 50 records from dataset</div>
+      </div>
+      <span class="chart-badge">50 records</span>
+    </div>
+    <div class="table-wrap">
+      <table id="txTable">
+        <thead>
+          <tr>
+            <th>#</th><th>Date</th><th>Product</th><th>Category</th>
+            <th>Region</th><th>Qty</th><th>Price (₹)</th><th>Revenue (₹)</th><th>Cost (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── EMBEDDED DATA ──────────────────────────────────────────────────────────────
+const D = {"generated_at":"2026-05-11T05:49:40.307735","record_count":1200,"kpis":{"total_revenue":1640582.35,"total_cost":943130.09,"gross_profit":697452.26,"profit_margin":42.5,"total_orders":1200,"avg_order_value":1367.15,"total_units_sold":6710},"monthly_revenue":[{"month":"January","revenue":121837.17,"orders":103},{"month":"February","revenue":162947.41,"orders":97},{"month":"March","revenue":134800.19,"orders":100},{"month":"April","revenue":135282.33,"orders":96},{"month":"May","revenue":147625.68,"orders":105},{"month":"June","revenue":161354.79,"orders":107},{"month":"July","revenue":85522.01,"orders":81},{"month":"August","revenue":129513.0,"orders":100},{"month":"September","revenue":141230.05,"orders":101},{"month":"October","revenue":169190.24,"orders":106},{"month":"November","revenue":98832.32,"orders":110},{"month":"December","revenue":152447.16,"orders":94}],"category_revenue":[{"category":"Electronics","revenue":821402.09,"profit":349490.66,"units":947,"orders":169},{"category":"Home & Garden","revenue":384422.28,"profit":164910.96,"units":933,"orders":174},{"category":"Sports","revenue":178614.03,"profit":73821.18,"units":1095,"orders":185},{"category":"Clothing","revenue":99145.45,"profit":42563.52,"units":930,"orders":164},{"category":"Beauty","revenue":80909.44,"profit":34697.07,"units":992,"orders":183},{"category":"Toys","revenue":61606.39,"profit":25781.72,"units":956,"orders":177},{"category":"Groceries","revenue":14482.67,"profit":6187.15,"units":857,"orders":148}],"region_revenue":[{"region":"West","revenue":362601.42,"orders":273},{"region":"North","revenue":358041.85,"orders":227},{"region":"Central","revenue":337300.04,"orders":240},{"region":"South","revenue":315707.41,"orders":232},{"region":"East","revenue":266931.63,"orders":228}],"top_products":[{"product":"Tablet","revenue":144189.81,"units":163,"category":"Electronics"},{"product":"Smartwatch","revenue":126285.56,"units":143,"category":"Electronics"},{"product":"Smartphone","revenue":123206.27,"units":149,"category":"Electronics"},{"product":"Headphones","revenue":113747.29,"units":136,"category":"Electronics"},{"product":"Speaker","revenue":112517.44,"units":121,"category":"Electronics"},{"product":"Camera","revenue":102589.61,"units":119,"category":"Electronics"},{"product":"Laptop","revenue":98866.11,"units":116,"category":"Electronics"},{"product":"Plant Pot","revenue":71455.0,"units":166,"category":"Home & Garden"},{"product":"Mirror","revenue":64945.37,"units":152,"category":"Home & Garden"},{"product":"Curtains","revenue":63614.01,"units":165,"category":"Home & Garden"}],"weekly_trend":[{"week":"W01","revenue":28730.74},{"week":"W02","revenue":33417.95},{"week":"W03","revenue":37387.23},{"week":"W04","revenue":16009.76},{"week":"W05","revenue":15589.79},{"week":"W06","revenue":20917.8},{"week":"W07","revenue":28663.24},{"week":"W08","revenue":67466.79},{"week":"W09","revenue":55489.63},{"week":"W10","revenue":15521.26},{"week":"W11","revenue":32689.15},{"week":"W12","revenue":31321.36},{"week":"W13","revenue":39912.97},{"week":"W14","revenue":25883.65},{"week":"W15","revenue":27656.35},{"week":"W16","revenue":33479.25},{"week":"W17","revenue":38296.51},{"week":"W18","revenue":42299.38},{"week":"W19","revenue":27843.72},{"week":"W20","revenue":16669.79},{"week":"W21","revenue":46966.11},{"week":"W22","revenue":42766.24},{"week":"W23","revenue":32058.29},{"week":"W24","revenue":29339.25},{"week":"W25","revenue":51730.62},{"week":"W26","revenue":29273.64},{"week":"W27","revenue":12601.02},{"week":"W28","revenue":13216.1},{"week":"W29","revenue":27002.02},{"week":"W30","revenue":24994.82},{"week":"W31","revenue":16297.4},{"week":"W32","revenue":24056.7},{"week":"W33","revenue":40492.8},{"week":"W34","revenue":34322.34},{"week":"W35","revenue":25690.36},{"week":"W36","revenue":40616.53},{"week":"W37","revenue":28024.33},{"week":"W38","revenue":11941.96},{"week":"W39","revenue":47768.75},{"week":"W40","revenue":26812.5},{"week":"W41","revenue":40507.95},{"week":"W42","revenue":64449.74},{"week":"W43","revenue":35057.92},{"week":"W44","revenue":18944.08},{"week":"W45","revenue":38901.67},{"week":"W46","revenue":23278.83},{"week":"W47","revenue":17159.22},{"week":"W48","revenue":13637.2},{"week":"W49","revenue":31514.19},{"week":"W50","revenue":25607.75},{"week":"W51","revenue":42805.32},{"week":"W52","revenue":47500.38}],"heatmap":{"Electronics":{"Jan":59828.46,"Feb":118605.65,"Mar":63670.73,"Apr":65964.21,"May":62354.98,"Jun":82828.88,"Jul":25369.08,"Aug":69499.9,"Sep":69798.28,"Oct":94800.27,"Nov":21855.18,"Dec":86826.47},"Clothing":{"Jan":9428.77,"Feb":8809.29,"Mar":10164.5,"Apr":7357.33,"May":5976.88,"Jun":11203.71,"Jul":7764.43,"Aug":8920.08,"Sep":3553.55,"Oct":9783.08,"Nov":11294.23,"Dec":4889.6},"Groceries":{"Jan":1119.0,"Feb":1784.88,"Mar":820.07,"Apr":802.3,"May":1073.71,"Jun":1304.97,"Jul":792.81,"Aug":1221.85,"Sep":1397.0,"Oct":1887.87,"Nov":1282.9,"Dec":995.31},"Home & Garden":{"Jan":18953.98,"Feb":12884.18,"Mar":32707.4,"Apr":32666.29,"May":61046.41,"Jun":33974.1,"Jul":32742.98,"Aug":23162.02,"Sep":38211.91,"Oct":36877.55,"Nov":28234.01,"Dec":32961.45},"Sports":{"Jan":13898.15,"Feb":11806.36,"Mar":14251.04,"Apr":14224.04,"May":8886.85,"Jun":17487.42,"Jul":13312.69,"Aug":13309.41,"Sep":16039.82,"Oct":13077.06,"Nov":22946.09,"Dec":19375.1},"Beauty":{"Jan":12411.58,"Feb":5070.05,"Mar":6262.13,"Apr":8194.11,"May":3594.51,"Jun":10000.23,"Jul":3179.43,"Aug":9009.52,"Sep":4277.64,"Oct":6171.87,"Nov":7890.33,"Dec":4848.04},"Toys":{"Jan":6197.23,"Feb":3987.0,"Mar":6924.32,"Apr":6074.05,"May":4692.34,"Jun":4555.48,"Jul":2360.59,"Aug":4390.22,"Sep":7951.85,"Oct":6592.54,"Nov":5329.58,"Dec":2551.19}},"transactions":[{"id":1,"date":"2024-05-05","month":"May","month_num":5,"category":"Beauty","product":"Moisturizer","region":"South","price":13.5,"quantity":5,"revenue":67.5,"cost":32.73},{"id":2,"date":"2024-02-14","month":"February","month_num":2,"category":"Electronics","product":"Camera","region":"Central","price":1149.9,"quantity":9,"revenue":10349.1,"cost":5748.72},{"id":3,"date":"2024-11-04","month":"November","month_num":11,"category":"Electronics","product":"Laptop","region":"North","price":445.16,"quantity":9,"revenue":4006.44,"cost":2365.05},{"id":4,"date":"2024-04-22","month":"April","month_num":4,"category":"Beauty","product":"Foundation","region":"West","price":108.19,"quantity":7,"revenue":757.33,"cost":452.37},{"id":5,"date":"2024-12-23","month":"December","month_num":12,"category":"Toys","product":"Craft Kit","region":"West","price":10.71,"quantity":3,"revenue":32.13,"cost":17.19},{"id":6,"date":"2024-02-22","month":"February","month_num":2,"category":"Clothing","product":"Jeans","region":"North","price":192.08,"quantity":6,"revenue":1152.48,"cost":628.08},{"id":7,"date":"2024-01-23","month":"January","month_num":1,"category":"Groceries","product":"Rice","region":"West","price":11.63,"quantity":5,"revenue":58.15,"cost":33.96},{"id":8,"date":"2024-07-04","month":"July","month_num":7,"category":"Home & Garden","product":"Sofa","region":"Central","price":455.07,"quantity":10,"revenue":4550.7,"cost":2266.58},{"id":9,"date":"2024-02-10","month":"February","month_num":2,"category":"Electronics","product":"Laptop","region":"South","price":1042.71,"quantity":5,"revenue":5213.55,"cost":3475.46},{"id":10,"date":"2024-03-24","month":"March","month_num":3,"category":"Home & Garden","product":"Curtains","region":"East","price":379.13,"quantity":6,"revenue":2274.78,"cost":1225.69},{"id":11,"date":"2024-11-07","month":"November","month_num":11,"category":"Beauty","product":"Shampoo","region":"South","price":108.25,"quantity":2,"revenue":216.5,"cost":126.34},{"id":12,"date":"2024-11-23","month":"November","month_num":11,"category":"Clothing","product":"Jeans","region":"Central","price":100.52,"quantity":5,"revenue":502.6,"cost":253.76},{"id":13,"date":"2024-04-27","month":"April","month_num":4,"category":"Groceries","product":"Rice","region":"North","price":23.51,"quantity":1,"revenue":23.51,"cost":15.31},{"id":14,"date":"2024-06-10","month":"June","month_num":6,"category":"Home & Garden","product":"Curtains","region":"South","price":80.97,"quantity":10,"revenue":809.7,"cost":497.04},{"id":15,"date":"2024-03-12","month":"March","month_num":3,"category":"Home & Garden","product":"Mirror","region":"South","price":383.32,"quantity":5,"revenue":1916.6,"cost":1219.43},{"id":16,"date":"2024-10-25","month":"October","month_num":10,"category":"Sports","product":"Dumbbells","region":"West","price":229.16,"quantity":7,"revenue":1604.12,"cost":867.03},{"id":17,"date":"2024-02-26","month":"February","month_num":2,"category":"Clothing","product":"Shoes","region":"South","price":106.3,"quantity":1,"revenue":106.3,"cost":64.51},{"id":18,"date":"2024-07-16","month":"July","month_num":7,"category":"Toys","product":"RC Car","region":"West","price":56.44,"quantity":2,"revenue":112.88,"cost":67.61},{"id":19,"date":"2024-01-06","month":"January","month_num":1,"category":"Home & Garden","product":"Rug","region":"North","price":223.59,"quantity":9,"revenue":2012.31,"cost":1248.49},{"id":20,"date":"2024-02-27","month":"February","month_num":2,"category":"Sports","product":"Swim Goggles","region":"East","price":94.71,"quantity":6,"revenue":568.26,"cost":317.48},{"id":21,"date":"2024-09-13","month":"September","month_num":9,"category":"Home & Garden","product":"Sofa","region":"South","price":764.44,"quantity":5,"revenue":3822.2,"cost":2205.11},{"id":22,"date":"2024-11-07","month":"November","month_num":11,"category":"Electronics","product":"Speaker","region":"South","price":994.16,"quantity":9,"revenue":8947.44,"cost":4368.23},{"id":23,"date":"2024-01-01","month":"January","month_num":1,"category":"Toys","product":"Board Game","region":"Central","price":69.33,"quantity":9,"revenue":623.97,"cost":331.35},{"id":24,"date":"2024-05-02","month":"May","month_num":5,"category":"Electronics","product":"Laptop","region":"North","price":1404.28,"quantity":5,"revenue":7021.4,"cost":3582.44},{"id":25,"date":"2024-02-05","month":"February","month_num":2,"category":"Sports","product":"Running Shoes","region":"Central","price":43.98,"quantity":8,"revenue":351.84,"cost":225.69},{"id":26,"date":"2024-03-25","month":"March","month_num":3,"category":"Clothing","product":"Sweater","region":"East","price":102.93,"quantity":9,"revenue":926.37,"cost":539.07},{"id":27,"date":"2024-12-19","month":"December","month_num":12,"category":"Sports","product":"Cycling Helmet","region":"South","price":290.02,"quantity":9,"revenue":2610.18,"cost":1639.81},{"id":28,"date":"2024-09-21","month":"September","month_num":9,"category":"Home & Garden","product":"Mirror","region":"West","price":530.41,"quantity":8,"revenue":4243.28,"cost":2037.84},{"id":29,"date":"2024-10-10","month":"October","month_num":10,"category":"Clothing","product":"T-Shirt","region":"South","price":77.55,"quantity":10,"revenue":775.5,"cost":463.06},{"id":30,"date":"2024-04-27","month":"April","month_num":4,"category":"Electronics","product":"Laptop","region":"North","price":1105.59,"quantity":1,"revenue":1105.59,"cost":747.77},{"id":31,"date":"2024-05-22","month":"May","month_num":5,"category":"Toys","product":"Puzzle","region":"West","price":17.79,"quantity":4,"revenue":71.16,"cost":35.83},{"id":32,"date":"2024-10-22","month":"October","month_num":10,"category":"Clothing","product":"Sweater","region":"West","price":188.07,"quantity":10,"revenue":1880.7,"cost":960.57},{"id":33,"date":"2024-02-19","month":"February","month_num":2,"category":"Home & Garden","product":"Shelf","region":"West","price":343.44,"quantity":2,"revenue":686.88,"cost":369.94},{"id":34,"date":"2024-12-10","month":"December","month_num":12,"category":"Home & Garden","product":"Plant Pot","region":"North","price":695.15,"quantity":1,"revenue":695.15,"cost":323.35},{"id":35,"date":"2024-05-07","month":"May","month_num":5,"category":"Beauty","product":"Shampoo","region":"South","price":122.08,"quantity":2,"revenue":244.16,"cost":121.48},{"id":36,"date":"2024-08-24","month":"August","month_num":8,"category":"Home & Garden","product":"Lamp","region":"South","price":354.85,"quantity":5,"revenue":1774.25,"cost":1186.3},{"id":37,"date":"2024-02-20","month":"February","month_num":2,"category":"Electronics","product":"Headphones","region":"North","price":1240.83,"quantity":9,"revenue":11167.47,"cost":6846.06},{"id":38,"date":"2024-05-01","month":"May","month_num":5,"category":"Sports","product":"Swim Goggles","region":"South","price":24.13,"quantity":2,"revenue":48.26,"cost":26.62},{"id":39,"date":"2024-03-25","month":"March","month_num":3,"category":"Home & Garden","product":"Lamp","region":"West","price":695.78,"quantity":1,"revenue":695.78,"cost":313.48},{"id":40,"date":"2024-05-26","month":"May","month_num":5,"category":"Home & Garden","product":"Curtains","region":"West","price":743.42,"quantity":8,"revenue":5947.36,"cost":3712.03},{"id":41,"date":"2024-03-20","month":"March","month_num":3,"category":"Beauty","product":"Nail Polish","region":"South","price":87.81,"quantity":8,"revenue":702.48,"cost":368.22},{"id":42,"date":"2024-06-09","month":"June","month_num":6,"category":"Electronics","product":"Smartwatch","region":"North","price":1143.25,"quantity":1,"revenue":1143.25,"cost":528.79},{"id":43,"date":"2024-03-21","month":"March","month_num":3,"category":"Home & Garden","product":"Rug","region":"North","price":737.93,"quantity":9,"revenue":6641.37,"cost":4583.84},{"id":44,"date":"2024-02-04","month":"February","month_num":2,"category":"Electronics","product":"Speaker","region":"South","price":400.86,"quantity":10,"revenue":4008.6,"cost":2208.51},{"id":45,"date":"2024-11-13","month":"November","month_num":11,"category":"Sports","product":"Yoga Mat","region":"North","price":182.1,"quantity":1,"revenue":182.1,"cost":101.03},{"id":46,"date":"2024-04-14","month":"April","month_num":4,"category":"Sports","product":"Tennis Racket","region":"East","price":166.38,"quantity":5,"revenue":831.9,"cost":424.0},{"id":47,"date":"2024-08-22","month":"August","month_num":8,"category":"Home & Garden","product":"Lamp","region":"East","price":547.2,"quantity":5,"revenue":2736.0,"cost":1866.65},{"id":48,"date":"2024-02-21","month":"February","month_num":2,"category":"Electronics","product":"Laptop","region":"North","price":768.69,"quantity":10,"revenue":7686.9,"cost":4492.29},{"id":49,"date":"2024-02-05","month":"February","month_num":2,"category":"Sports","product":"Dumbbells","region":"South","price":57.09,"quantity":6,"revenue":342.54,"cost":185.79},{"id":50,"date":"2024-11-09","month":"November","month_num":11,"category":"Clothing","product":"Dress","region":"Central","price":169.24,"quantity":5,"revenue":846.2,"cost":382.44}]};
+
+const COLORS = ['#00e5ff','#7c3aed','#22c55e','#ff6b35','#f472b6','#fbbf24','#64748b'];
+const fmt = v => '₹' + v.toLocaleString('en-IN', {maximumFractionDigits:0});
+const fmtK = v => v >= 100000 ? '₹'+(v/100000).toFixed(1)+'L' : '₹'+(v/1000).toFixed(0)+'K';
+
+Chart.defaults.color = '#64748b';
+Chart.defaults.borderColor = '#1e2840';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+
+// ── MONTHLY CHART ───────────────────────────────────────────────────────────
+const mLabels = D.monthly_revenue.map(r => r.month.slice(0,3));
+const mRev    = D.monthly_revenue.map(r => r.revenue);
+const mOrd    = D.monthly_revenue.map(r => r.orders);
+new Chart(document.getElementById('monthlyChart'), {
+  data: {
+    labels: mLabels,
+    datasets: [
+      {
+        type:'bar', label:'Revenue', data: mRev, yAxisID:'y',
+        backgroundColor: 'rgba(0,229,255,.2)', borderColor:'#00e5ff',
+        borderWidth:1.5, borderRadius:4,
+        hoverBackgroundColor:'rgba(0,229,255,.4)'
+      },
+      {
+        type:'line', label:'Orders', data: mOrd, yAxisID:'y2',
+        borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,.15)',
+        pointBackgroundColor:'#ff6b35', pointRadius:3, tension:.4,
+        fill:true, borderWidth:2
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:16}}},
+    scales:{
+      y:{grid:{color:'#1e2840'},ticks:{callback:v=>fmtK(v)}},
+      y2:{position:'right',grid:{display:false},ticks:{color:'#ff6b35'}}
+    }
+  }
+});
+
+// ── DONUT CHART ─────────────────────────────────────────────────────────────
+new Chart(document.getElementById('donutChart'), {
+  type:'doughnut',
+  data:{
+    labels: D.category_revenue.map(r=>r.category),
+    datasets:[{
+      data: D.category_revenue.map(r=>r.revenue),
+      backgroundColor: COLORS,
+      borderColor:'#111520', borderWidth:3,
+      hoverOffset:8
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, cutout:'65%',
+    plugins:{
+      legend:{position:'right',labels:{usePointStyle:true,pointStyle:'circle',padding:12,font:{size:11}}},
+      tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtK(ctx.raw)}`}}
+    }
+  }
+});
+
+// ── TOP PRODUCTS ─────────────────────────────────────────────────────────────
+new Chart(document.getElementById('topProdChart'), {
+  type:'bar',
+  data:{
+    labels: D.top_products.map(r=>r.product),
+    datasets:[{
+      label:'Revenue', data: D.top_products.map(r=>r.revenue),
+      backgroundColor: D.top_products.map((_,i)=>COLORS[i%COLORS.length]+'99'),
+      borderColor: D.top_products.map((_,i)=>COLORS[i%COLORS.length]),
+      borderWidth:1.5, borderRadius:4
+    }]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},
+    scales:{x:{grid:{color:'#1e2840'},ticks:{callback:v=>fmtK(v)}},y:{grid:{display:false}}}
+  }
+});
+
+// ── REGION BARS ──────────────────────────────────────────────────────────────
+const maxRev = Math.max(...D.region_revenue.map(r=>r.revenue));
+const regionColors = ['#00e5ff','#7c3aed','#22c55e','#ff6b35','#f472b6'];
+const rbWrap = document.getElementById('regionBars');
+D.region_revenue.forEach((r,i)=>{
+  const pct = (r.revenue/maxRev*100).toFixed(1);
+  rbWrap.innerHTML += `
+  <div class="region-row">
+    <div class="region-name">${r.region}</div>
+    <div class="region-track">
+      <div class="region-fill" style="width:${pct}%;background:${regionColors[i]};opacity:.85"></div>
+    </div>
+    <div class="region-val">${fmtK(r.revenue)}</div>
+  </div>`;
+});
+// Add orders mini info
+D.region_revenue.forEach((r,i)=>{
+  const rows = rbWrap.querySelectorAll('.region-row');
+  const sub = document.createElement('div');
+  sub.style.cssText='font-size:10px;color:#64748b;font-family:JetBrains Mono,monospace;margin-top:-8px;margin-left:82px;margin-bottom:4px';
+  sub.textContent = `${r.orders} orders`;
+  rows[i].insertAdjacentElement('afterend',sub);
+});
+
+// ── REVENUE vs PROFIT ────────────────────────────────────────────────────────
+new Chart(document.getElementById('revProfChart'), {
+  type:'bar',
+  data:{
+    labels: D.category_revenue.map(r=>r.category.replace(' & ',' &\n')),
+    datasets:[
+      {label:'Revenue', data:D.category_revenue.map(r=>r.revenue),
+       backgroundColor:'rgba(0,229,255,.25)',borderColor:'#00e5ff',borderWidth:1.5,borderRadius:4},
+      {label:'Profit',  data:D.category_revenue.map(r=>r.profit),
+       backgroundColor:'rgba(34,197,94,.25)',borderColor:'#22c55e',borderWidth:1.5,borderRadius:4}
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:12}},
+      tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#1e2840'},ticks:{callback:v=>fmtK(v)}}}
+  }
+});
+
+// ── WEEKLY TREND ─────────────────────────────────────────────────────────────
+new Chart(document.getElementById('weeklyChart'), {
+  type:'line',
+  data:{
+    labels: D.weekly_trend.map(r=>r.week),
+    datasets:[{
+      label:'Revenue', data:D.weekly_trend.map(r=>r.revenue),
+      borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,.12)',
+      fill:true, tension:.35, pointRadius:0, borderWidth:2,
+      pointHoverRadius:4, pointHoverBackgroundColor:'#7c3aed'
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},
+    scales:{
+      x:{grid:{display:false},ticks:{maxTicksLimit:13}},
+      y:{grid:{color:'#1e2840'},ticks:{callback:v=>fmtK(v)}}
+    }
+  }
+});
+
+// ── UNITS CHART ──────────────────────────────────────────────────────────────
+new Chart(document.getElementById('unitsChart'), {
+  type:'polarArea',
+  data:{
+    labels: D.category_revenue.map(r=>r.category),
+    datasets:[{
+      data:D.category_revenue.map(r=>r.units),
+      backgroundColor: COLORS.map(c=>c+'55'),
+      borderColor: COLORS, borderWidth:1.5
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{usePointStyle:true,padding:10,font:{size:10}}}}
+  }
+});
+
+// ── HEATMAP ──────────────────────────────────────────────────────────────────
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const cats   = Object.keys(D.heatmap);
+const allVals = cats.flatMap(c=>months.map(m=>D.heatmap[c][m]||0));
+const hMax = Math.max(...allVals), hMin = Math.min(...allVals);
+const lerp = (t,a,b) => a + (b-a)*t;
+
+function heatColor(val){
+  const t = (val-hMin)/(hMax-hMin);
+  const r = Math.round(lerp(t,20,0));
+  const g = Math.round(lerp(t,40,229));
+  const b = Math.round(lerp(t,80,255));
+  return `rgb(${r},${g},${b})`;
+}
+
+let hmHtml = '<div class="heatmap-grid">';
+hmHtml += '<div class="hm-header"></div>';
+months.forEach(m=>{ hmHtml += `<div class="hm-header">${m}</div>`; });
+cats.forEach(cat=>{
+  hmHtml += `<div class="hm-label">${cat}</div>`;
+  months.forEach(m=>{
+    const v = D.heatmap[cat][m]||0;
+    const t = (v-hMin)/(hMax-hMin);
+    const bg = heatColor(v);
+    const fg = t > .5 ? '#0a0c10' : '#e2e8f0';
+    hmHtml += `<div class="hm-cell" style="background:${bg};color:${fg}" title="${cat} · ${m}: ${fmt(v)}">${fmtK(v)}</div>`;
+  });
+});
+hmHtml += '</div>';
+document.getElementById('heatmapWrap').innerHTML = hmHtml;
+
+// ── TRANSACTION TABLE ────────────────────────────────────────────────────────
+const catBadge = {
+  'Electronics':'badge-elec','Home & Garden':'badge-home',
+  'Sports':'badge-sprt','Clothing':'badge-clth',
+  'Beauty':'badge-bty','Toys':'badge-toys','Groceries':'badge-groc'
+};
+const tbody = document.getElementById('txBody');
+D.transactions.forEach(t=>{
+  const cls = catBadge[t.category]||'';
+  tbody.innerHTML += `
+  <tr>
+    <td style="color:var(--muted);font-family:'JetBrains Mono',monospace">#${t.id}</td>
+    <td style="font-family:'JetBrains Mono',monospace">${t.date}</td>
+    <td style="font-weight:600">${t.product}</td>
+    <td><span class="badge ${cls}">${t.category}</span></td>
+    <td>${t.region}</td>
+    <td style="text-align:center">${t.quantity}</td>
+    <td style="font-family:'JetBrains Mono',monospace">${fmt(t.price)}</td>
+    <td style="font-family:'JetBrains Mono',monospace;color:var(--accent1)">${fmt(t.revenue)}</td>
+    <td style="font-family:'JetBrains Mono',monospace;color:var(--muted)">${fmt(t.cost)}</td>
+  </tr>`;
+});
+</script>
+</body>
+</html>
